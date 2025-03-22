@@ -66,6 +66,7 @@ Just press the leader_key set on setup and follow you heart. (Is that easy)
   always_show_path = false,
   separate_by_branch = false, -- Bookmarks will be separated by git branch
   hide_handbook = false, -- set to true to hide the shortcuts on menu.
+  hide_buffer_handbook = false, --set to true to hide shortcuts on buffer menu
   save_path = function()
     return vim.fn.stdpath("cache") .. "/arrow"
   end,
@@ -96,7 +97,7 @@ Just press the leader_key set on setup and follow you heart. (Is that easy)
   per_buffer_config = {
     lines = 4, -- Number of lines showed on preview.
     sort_automatically = true, -- Auto sort buffer marks.
-    satellite = { -- defualt to nil, display arrow index in scrollbar at every update
+    satellite = { -- default to nil, display arrow index in scrollbar at every update
       enable = false,
       overlap = true,
       priority = 1000,

@@ -64,8 +64,10 @@ function M.spawn_preview_window(buffer, index, bookmark, bookmark_count)
 	local row = height + (index - 1) * (lines_count + 2) - (bookmark_count - 1) * lines_count
 
 	local width = math.ceil(vim.o.columns / 2)
-	
+
 	local zindex = config.getState("buffer_mark_zindex")
+
+	local border = config.getState("window").border
 
 	lastRow = row
 	spawn_col = width
@@ -76,7 +78,7 @@ function M.spawn_preview_window(buffer, index, bookmark, bookmark_count)
 		row = row,
 		col = math.ceil((vim.o.columns - width) / 2),
 		relative = "editor",
-		border = "single",
+		border = border,
 		zindex = zindex or 50,
 	}
 
@@ -178,9 +180,7 @@ end
 local function delete_marks_from_delete_mode(call_buffer)
 	local reversely_sorted_to_delete = vim.fn.reverse(vim.fn.sort(to_delete))
 
-	for _, index in ipairs(reversely_sorted_to_delete) do
-		persist.remove(index, call_buffer)
-	end
+	persist.remove(reversely_sorted_to_delete, call_buffer)
 end
 
 local function after_close(call_buffer)
@@ -213,6 +213,7 @@ local function go_to_bookmark(bookmark)
 	if bookmark.line < top_line or bookmark.line >= top_line + win_height then
 		vim.cmd("normal! zz")
 	end
+	vim.api.nvim_exec_autocmds("User", { pattern = "ArrowGoToBookmark" })
 end
 
 local function toggle_delete_mode(action_buffer)
@@ -305,6 +306,8 @@ function M.spawn_action_windows(call_buffer, bookmarks, line_nr, col_nr, call_wi
 
 	local width = math.ceil(vim.o.columns / 2)
 
+	local border = config.getState("window").border
+
 	local window_config
 
 	if #bookmarks == 0 then
@@ -315,7 +318,7 @@ function M.spawn_action_windows(call_buffer, bookmarks, line_nr, col_nr, call_wi
 			col = math.ceil((vim.o.columns - 15) / 2),
 			style = "minimal",
 			relative = "editor",
-			border = "single",
+			border = border,
 		}
 	else
 		window_config = {
@@ -325,8 +328,19 @@ function M.spawn_action_windows(call_buffer, bookmarks, line_nr, col_nr, call_wi
 			col = width - spawn_col / 2,
 			style = "minimal",
 			relative = "editor",
-			border = "single",
+			border = border,
 		}
+	end
+
+	local hide_buffer_handbook = config.getState("hide_buffer_handbook")
+
+	if hide_buffer_handbook then
+		if #bookmarks == 0 then
+			window_config.height = 3
+			window_config.width = 22
+		else
+			window_config.hide = true
+		end
 	end
 
 	vim.api.nvim_open_win(actions_buffer, true, window_config)
@@ -334,6 +348,10 @@ function M.spawn_action_windows(call_buffer, bookmarks, line_nr, col_nr, call_wi
 	local mappings = config.getState("mappings")
 
 	local lines = getActionsMenu(#bookmarks)
+
+	if hide_buffer_handbook and #bookmarks == 0 then
+		lines = { "", "   No bookmarks yet." }
+	end
 
 	local menuKeymapOpts = { noremap = true, silent = true, buffer = actions_buffer, nowait = true }
 
@@ -398,6 +416,13 @@ function M.spawn_action_windows(call_buffer, bookmarks, line_nr, col_nr, call_wi
 			if not found then
 				if delete_mode then
 					remove_preview_buffer_by_index(i)
+					if hide_buffer_handbook and #bookmarks == #to_delete then
+						closeMenu(actions_buffer, call_buffer)
+						-- delay 5 ms to avoid overwritting `Disable Cursor` autocmd
+						vim.defer_fn(function()
+							M.openMenu()
+						end, 5)
+					end
 				else
 					closeMenu(actions_buffer, call_buffer)
 					go_to_bookmark(bookmark)
